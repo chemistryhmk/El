@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Спец-операція: Сортування доказів</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Special+Elite&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #1e1b18;
+      background-image: radial-gradient(#3a332c 1px, transparent 1px);
+      background-size: 24px 24px;
+      color: #e5e0d8;
+    }
+    
+    .font-detective {
+      font-family: 'Courier Prime', monospace;
+    }
+
+    .font-stamp {
+      font-family: 'Special Elite', cursive;
+    }
+
+    /* Custom scrollbar for evidence rack */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #2a241e;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #5c4d3c;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #857057;
+    }
+
+    /* Drag and drop styling */
+    .draggable-card {
+      touch-action: none;
+      cursor: grab;
+      user-select: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .draggable-card:active {
+      cursor: grabbing;
+      transform: scale(1.03);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    
+    .drop-zone {
+      transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    }
+    .drop-zone.drag-over {
+      transform: scale(1.01);
+    }
+
+    /* Detective Stamp Animations */
+    @keyframes stamp-appear {
+      0% { opacity: 0; transform: scale(3) rotate(-12deg); }
+      100% { opacity: 1; transform: scale(1) rotate(-6deg); }
+    }
+    .stamp-approved {
+      animation: stamp-appear 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-3 md:p-6 select-none">
+
+  <!-- TOP BAR: Header & Stats -->
+  <header class="max-w-7xl w-full mx-auto mb-4 bg-amber-950/40 border-2 border-amber-800/50 rounded-xl p-4 backdrop-blur-md shadow-2xl flex flex-col md:flex-row justify-between items-center gap-4">
+    <div class="flex items-center gap-3">
+      <div class="p-3 bg-amber-900/60 border border-amber-700/60 rounded-lg text-amber-400">
+        <i class="fa-solid fa-folder-open text-3xl"></i>
+      </div>
+      <div>
+        <div class="text-xs uppercase tracking-widest text-amber-500/80 font-semibold">Справа № 9 • Інтерактивне Сортування</div>
+        <h1 class="text-xl md:text-2xl font-bold font-detective text-amber-100 flex items-center gap-2">
+          Спец-операція: Сортування 17 Доказів
+        </h1>
+      </div>
+    </div>
+
+    <!-- Progress & Timer Counters -->
+    <div class="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+      <div class="bg-black/50 border border-amber-900/40 px-4 py-2 rounded-lg flex items-center gap-3">
+        <i class="fa-solid fa-box-archive text-amber-500"></i>
+        <div>
+          <div class="text-[10px] uppercase text-stone-400">Оброблено доказів</div>
+          <div class="text-lg font-bold font-detective text-amber-200" id="progress-text">0 / 17</div>
+        </div>
+      </div>
+
+      <div class="bg-black/50 border border-amber-900/40 px-4 py-2 rounded-lg flex items-center gap-3">
+        <i class="fa-solid fa-stopwatch text-amber-500"></i>
+        <div>
+          <div class="text-[10px] uppercase text-stone-400">Таймер Слідства</div>
+          <div class="text-lg font-bold font-detective text-amber-200" id="timer-text">00:00</div>
+        </div>
+      </div>
+
+      <button id="btn-reset" title="Скинути розслідування" class="p-3 bg-stone-800 hover:bg-amber-900 text-stone-300 hover:text-amber-200 border border-stone-700 rounded-lg transition-colors">
+        <i class="fa-solid fa-rotate-right"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN OPERATIONAL FIELD -->
+  <main class="max-w-7xl w-full mx-auto flex-grow flex flex-col gap-6">
+
+    <!-- EVIDENCE DECK (UNSORTED EVIDENCE CARDS) -->
+    <section class="bg-stone-900/80 border border-stone-800 rounded-xl p-4 shadow-xl">
+      <div class="flex items-center justify-between mb-3 border-b border-stone-800 pb-2">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+          <h2 class="text-sm font-semibold uppercase tracking-wider text-stone-300 font-detective">
+            Нерозібрані речові докази (Виберіть або перетягніть у потрібну камеру)
+          </h2>
+        </div>
+        <span class="text-xs text-stone-400 italic hidden md:inline"><i class="fa-solid fa-hand-pointer mr-1"></i> Перетягніть картку або натисніть на неї для вибору</span>
+      </div>
+
+      <div id="evidence-container" class="flex flex-wrap gap-2.5 min-h-[110px] items-center p-2 bg-stone-950/60 rounded-lg border border-stone-800/80">
+        <!-- Dynamic Cards Inserted via JS -->
+      </div>
+    </section>
+
+    <!-- THREE CONTAINMENT CHAMBERS (DROP ZONES) -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-4 flex-grow">
+      
+      <!-- CHAMBER 1: ACID -->
+      <div data-chamber="acid" class="drop-zone bg-red-950/20 border-2 border-dashed border-red-900/60 hover:border-red-600/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
+        <div class="absolute -top-12 -right-12 w-32 h-32 bg-red-600/10 rounded-full blur-2xl group-hover:bg-red-600/20 transition-all"></div>
+        
+        <div>
+          <!-- Chamber Header -->
+          <div class="flex items-center justify-between mb-3 border-b border-red-900/50 pb-2">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-lg bg-red-900/60 border border-red-700 flex items-center justify-center text-red-400 font-bold">
+                <i class="fa-solid fa-vial-circle-check"></i>
+              </div>
+              <div>
+                <h3 class="font-bold font-detective text-red-300">Камера № 1</h3>
+                <p class="text-[11px] text-red-400/80 font-medium">Надлишок [H⁺] • Кислотне</p>
+              </div>
+            </div>
+            <span class="text-xs font-mono font-bold text-red-400 bg-red-950/80 border border-red-900 px-2 py-1 rounded chamber-count">0</span>
+          </div>
+          <div class="text-xs text-red-200/60 mb-3 italic">n(H⁺) > n(OH⁻) • pH &lt; 7 • Кислий смак, реагують із металами</div>
+
+          <!-- Chamber Drop List -->
+          <div class="chamber-items flex flex-col gap-2 min-h-[220px] p-2 bg-red-950/30 rounded-lg border border-red-900/40">
+            <!-- Dropped items go here -->
+          </div>
+        </div>
+
+        <button onclick="app.quickAssign('acid')" class="mt-3 w-full py-2 px-3 bg-red-900/40 hover:bg-red-900/70 border border-red-700/60 rounded-lg text-xs font-semibold text-red-200 transition-colors flex items-center justify-center gap-2">
+          <i class="fa-solid fa-arrow-down-to-bracket"></i> Помістити вибраний доказ сюди
+        </button>
+      </div>
+
+      <!-- CHAMBER 2: NEUTRAL -->
+      <div data-chamber="neutral" class="drop-zone bg-emerald-950/20 border-2 border-dashed border-emerald-900/60 hover:border-emerald-600/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
+        <div class="absolute -top-12 -right-12 w-32 h-32 bg-emerald-600/10 rounded-full blur-2xl group-hover:bg-emerald-600/20 transition-all"></div>
+        
+        <div>
+          <!-- Chamber Header -->
+          <div class="flex items-center justify-between mb-3 border-b border-emerald-900/50 pb-2">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-lg bg-emerald-900/60 border border-emerald-700 flex items-center justify-center text-emerald-400 font-bold">
+                <i class="fa-solid fa-scale-balanced"></i>
+              </div>
+              <div>
+                <h3 class="font-bold font-detective text-emerald-300">Камера № 2</h3>
+                <p class="text-[11px] text-emerald-400/80 font-medium">Баланс [H⁺] = [OH⁻] • Нейтральне</p>
+              </div>
+            </div>
+            <span class="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-900 px-2 py-1 rounded chamber-count">0</span>
+          </div>
+          <div class="text-xs text-emerald-200/60 mb-3 italic">n(H⁺) = n(OH⁻) • pH = 7 • Чиста вода, солі сильних кислот і лугів</div>
+
+          <!-- Chamber Drop List -->
+          <div class="chamber-items flex flex-col gap-2 min-h-[220px] p-2 bg-emerald-950/30 rounded-lg border border-emerald-900/40">
+            <!-- Dropped items go here -->
+          </div>
+        </div>
+
+        <button onclick="app.quickAssign('neutral')" class="mt-3 w-full py-2 px-3 bg-emerald-900/40 hover:bg-emerald-900/70 border border-emerald-700/60 rounded-lg text-xs font-semibold text-emerald-200 transition-colors flex items-center justify-center gap-2">
+          <i class="fa-solid fa-arrow-down-to-bracket"></i> Помістити вибраний доказ сюди
+        </button>
+      </div>
+
+      <!-- CHAMBER 3: BASE / ALKALI -->
+      <div data-chamber="alkali" class="drop-zone bg-blue-950/20 border-2 border-dashed border-blue-900/60 hover:border-blue-600/80 rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden group">
+        <div class="absolute -top-12 -right-12 w-32 h-32 bg-blue-600/10 rounded-full blur-2xl group-hover:bg-blue-600/20 transition-all"></div>
+        
+        <div>
+          <!-- Chamber Header -->
+          <div class="flex items-center justify-between mb-3 border-b border-blue-900/50 pb-2">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-lg bg-blue-900/60 border border-blue-700 flex items-center justify-center text-blue-400 font-bold">
+                <i class="fa-solid fa-soap"></i>
+              </div>
+              <div>
+                <h3 class="font-bold font-detective text-blue-300">Камера № 3</h3>
+                <p class="text-[11px] text-blue-400/80 font-medium">Захоплення [OH⁻] • Лужне</p>
+              </div>
+            </div>
+            <span class="text-xs font-mono font-bold text-blue-400 bg-blue-950/80 border border-blue-900 px-2 py-1 rounded chamber-count">0</span>
+          </div>
+          <div class="text-xs text-blue-200/60 mb-3 italic">n(H⁺) &lt; n(OH⁻) • pH > 7 • Милкі на дотик, розчиняють органіку</div>
+
+          <!-- Chamber Drop List -->
+          <div class="chamber-items flex flex-col gap-2 min-h-[220px] p-2 bg-blue-950/30 rounded-lg border border-blue-900/40">
+            <!-- Dropped items go here -->
+          </div>
+        </div>
+
+        <button onclick="app.quickAssign('alkali')" class="mt-3 w-full py-2 px-3 bg-blue-900/40 hover:bg-blue-900/70 border border-blue-700/60 rounded-lg text-xs font-semibold text-blue-200 transition-colors flex items-center justify-center gap-2">
+          <i class="fa-solid fa-arrow-down-to-bracket"></i> Помістити вибраний доказ сюди
+        </button>
+      </div>
+
+    </section>
+
+    <!-- BOTTOM ACTION PANEL -->
+    <div class="flex flex-col sm:flex-row justify-between items-center gap-4 bg-stone-900/90 border border-stone-800 p-4 rounded-xl shadow-xl">
+      <div class="text-xs text-stone-400 flex items-center gap-2">
+        <i class="fa-solid fa-shield-halved text-amber-500 text-lg"></i>
+        <span>Перевірте правильність сортування доказів перед винесенням остаточного вердикту!</span>
+      </div>
+
+      <button id="btn-submit" disabled class="w-full sm:w-auto px-6 py-3 bg-stone-800 border border-stone-700 text-stone-500 font-bold font-detective rounded-xl cursor-not-allowed transition-all flex items-center justify-center gap-2">
+        <i class="fa-solid fa-stamp"></i> ВИНЕСТИ ОСТАТОЧНИЙ ВЕРДИКТ
+      </button>
+    </div>
+
+  </main>
+
+  <!-- MODAL: FINAL VERDICT REPORT -->
+  <div id="verdict-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-stone-900 border-2 border-amber-800/80 max-w-3xl w-full rounded-2xl shadow-2xl p-6 relative my-8">
+      
+      <!-- Modal Header Stamp -->
+      <div class="flex justify-between items-start border-b border-amber-900/60 pb-4 mb-4">
+        <div>
+          <span class="text-xs uppercase font-semibold text-amber-500 tracking-widest">Протокол Слідчої Експертизи</span>
+          <h2 class="text-2xl font-bold font-detective text-amber-100">ЗВІТ СУДОВО-ХІМІЧНОЇ ЕКСПЕРТИЗИ</h2>
+        </div>
+        <div id="verdict-badge" class="font-stamp text-xl px-4 py-1.5 border-2 rounded tracking-wider uppercase">
+          ОБРОБКА...
+        </div>
+      </div>
+
+      <!-- Stats Summary -->
+      <div class="grid grid-cols-3 gap-3 mb-6 bg-stone-950/70 p-3 rounded-xl border border-stone-800 text-center">
+        <div>
+          <div class="text-[10px] text-stone-400 uppercase">Точність аналізу</div>
+          <div id="final-accuracy" class="text-2xl font-bold font-detective text-amber-400">0%</div>
+        </div>
+        <div>
+          <div class="text-[10px] text-stone-400 uppercase">Вірно розпізнано</div>
+          <div id="final-score" class="text-2xl font-bold font-detective text-emerald-400">0 / 17</div>
+        </div>
+        <div>
+          <div class="text-[10px] text-stone-400 uppercase">Час операції</div>
+          <div id="final-time" class="text-2xl font-bold font-detective text-blue-400">00:00</div>
+        </div>
+      </div>
+
+      <!-- Detailed Breakdown List -->
+      <h3 class="text-sm font-semibold font-detective text-amber-200 mb-2">Деталізований допит 17 речових доказів:</h3>
+      <div id="verdict-details" class="max-h-60 overflow-y-auto pr-2 space-y-2 mb-6">
+        <!-- JS inserts items breakdown here -->
+      </div>
+
+      <!-- Modal Footer Buttons -->
+      <div class="flex justify-end gap-3 border-t border-stone-800 pt-4">
+        <button id="btn-modal-close" class="px-5 py-2.5 bg-amber-900/80 hover:bg-amber-800 text-amber-100 font-bold rounded-xl transition-colors font-detective">
+          <i class="fa-solid fa-check mr-1"></i> Зрозуміло, завершити
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    // DATA: 17 Evidence Items with chemical explanations
+    const EVIDENCE_ITEMS = [
+      { id: 1, name: "Яблучний сік", formula: "Яблучна кислота", target: "acid", icon: "fa-apple-whole", hint: "Містить органічну яблучну кислоту, pH ≈ 3.5" },
+      { id: 2, name: "Розчин солі (NaCl)", formula: "NaCl(р-н)", target: "neutral", icon: "fa-cube", hint: "Сіль сильної кислоти і сильної основи, pH = 7.0" },
+      { id: 3, name: "Засіб для чищення раковин", formula: "NaOH(конц)", target: "alkali", icon: "fa-pump-soap", hint: "Містить концентрований натрій гідроксид, pH ≈ 13-14" },
+      { id: 4, name: "Газована вода", formula: "H₂CO₃", target: "acid", icon: "fa-bottle-water", hint: "Містить слабку карбонатну кислоту від CO₂, pH ≈ 4.5" },
+      { id: 5, name: "Дистильована вода", formula: "H₂O чиста", target: "neutral", icon: "fa-glass-water", hint: "[H⁺] = [OH⁻] = 1·10⁻⁷ моль/л, pH = 7.0" },
+      { id: 6, name: "Вапняна вода", formula: "Ca(OH)₂", target: "alkali", icon: "fa-fill-drip", hint: "Розчин розчинного гідроксиду кальцію, pH ≈ 12.0" },
+      { id: 7, name: "Шлунковий сік", formula: "HCl(р-н)", target: "acid", icon: "fa-stomach", hint: "Містить хлоридну кислоту, агресивне середовище pH ≈ 1.5" },
+      { id: 8, name: "Розчин цукру", formula: "C₁₂H₂₂O₁₁", target: "neutral", icon: "fa-cookie", hint: "Неелектроліт, молекули не утворюють йони, pH = 7.0" },
+      { id: 9, name: "Господарське мило", formula: "Натрієві солі жирних кислот", target: "alkali", icon: "fa-soap", hint: "Слабкі кислоти + сильна основа, лужне середовище pH ≈ 9-10" },
+      { id: 10, name: "Столовий оцет", formula: "CH₃COOH (9%)", target: "acid", icon: "fa-wine-bottle", hint: "Розчин оцтової кислоти, pH ≈ 2.5" },
+      { id: 11, name: "Плазма крові", formula: "Буферна система", target: "neutral", icon: "fa-droplet", hint: "Суворо слаболужна/нейтральна норма, pH = 7.35–7.45" },
+      { id: 12, name: "Нашатирний спирт", formula: "NH₃·H₂O", target: "alkali", icon: "fa-prescription-bottle", hint: "Водний розчин амоніаку, слабка основа, pH ≈ 11.5" },
+      { id: 13, name: "Лимонний сік", formula: "Лимонна кислота", target: "acid", icon: "fa-lemon", hint: "Багатоосновна органічна кислота, pH ≈ 2.2" },
+      { id: 14, name: "Розчин Калій Нітрату", formula: "KNO₃", target: "neutral", icon: "fa-vial", hint: "Сіль сильної кислоти HNO₃ та лугу KOH, pH = 7.0" },
+      { id: 15, name: "Пральна сода", formula: "Na₂CO₃(р-н)", target: "alkali", icon: "fa-box-tissue", hint: "Внаслідок гідролізу створює сильнолужне середовище pH ≈ 11.5" },
+      { id: 16, name: "Акумуляторна кислота", formula: "H₂SO₄(конц)", target: "acid", icon: "fa-car-battery", hint: "Сильна сульфатна кислота, дуже низький pH ≈ 0.5" },
+      { id: 17, name: "Розчин глюкози", formula: "C₆H₁₂O₆", target: "neutral", icon: "fa-cubes-stacked", hint: "Органічний неелектроліт, не змінює pH води, pH = 7.0" }
+    ];
+
+    class DetectiveSortingApp {
+      constructor() {
+        this.items = [...EVIDENCE_ITEMS];
+        this.userAssignments = {}; // { itemID: chamberKey }
+        this.selectedCardID = null;
+        this.timerSeconds = 0;
+        this.timerInterval = null;
+        this.isSubmitted = false;
+
+        this.initDOM();
+        this.initEvents();
+        this.resetGame();
+      }
+
+      initDOM() {
+        this.evidenceDeck = document.getElementById('evidence-container');
+        this.progressText = document.getElementById('progress-text');
+        this.timerText = document.getElementById('timer-text');
+        this.btnSubmit = document.getElementById('btn-submit');
+        this.btnReset = document.getElementById('btn-reset');
+        this.modal = document.getElementById('verdict-modal');
+        this.btnCloseModal = document.getElementById('btn-modal-close');
+        this.chambers = document.querySelectorAll('.drop-zone');
+      }
+
+      initEvents() {
+        // Reset button
+        this.btnReset.addEventListener('click', () => this.resetGame());
+        
+        // Submit button
+        this.btnSubmit.addEventListener('click', () => this.evaluateResults());
+
+        // Close modal
+        this.btnCloseModal.addEventListener('click', () => {
+          this.modal.classList.add('hidden');
+        });
+
+        // Setup Drag & Drop listeners on Chambers
+        this.chambers.forEach(chamber => {
+          chamber.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            chamber.classList.add('drag-over', 'bg-amber-900/20');
+          });
+
+          chamber.addEventListener('dragleave', () => {
+            chamber.classList.remove('drag-over', 'bg-amber-900/20');
+          });
+
+          chamber.addEventListener('drop', (e) => {
+            e.preventDefault();
+            chamber.classList.remove('drag-over', 'bg-amber-900/20');
+            const itemID = e.dataTransfer.getData('text/plain');
+            const targetChamber = chamber.getAttribute('data-chamber');
+            if (itemID) {
+              this.assignItem(parseInt(itemID), targetChamber);
+            }
+          });
+        });
+      }
+
+      resetGame() {
+        this.userAssignments = {};
+        this.selectedCardID = null;
+        this.isSubmitted = false;
+        this.timerSeconds = 0;
+        
+        clearInterval(this.timerInterval);
+        this.startTimer();
+
+        // Shuffle Items
+        this.items.sort(() => Math.random() - 0.5);
+
+        this.render();
+      }
+
+      startTimer() {
+        this.timerText.textContent = "00:00";
+        this.timerInterval = setInterval(() => {
+          this.timerSeconds++;
+          const mins = String(Math.floor(this.timerSeconds / 60)).padStart(2, '0');
+          const secs = String(this.timerSeconds % 60).padStart(2, '0');
+          this.timerText.textContent = `${mins}:${secs}`;
+        }, 1000);
+      }
+
+      selectCard(id) {
+        if (this.isSubmitted) return;
+        this.selectedCardID = (this.selectedCardID === id) ? null : id;
+        this.renderDeck();
+      }
+
+      assignItem(itemID, chamberKey) {
+        if (this.isSubmitted) return;
+        this.userAssignments[itemID] = chamberKey;
+        this.selectedCardID = null;
+        this.render();
+      }
+
+      quickAssign(chamberKey) {
+        if (this.selectedCardID) {
+          this.assignItem(this.selectedCardID, chamberKey);
+        } else {
+          // Find first unassigned item
+          const unassigned = this.items.find(item => !this.userAssignments[item.id]);
+          if (unassigned) {
+            this.assignItem(unassigned.id, chamberKey);
+          }
+        }
+      }
+
+      render() {
+        this.renderDeck();
+        this.renderChambers();
+        this.updateStats();
+      }
+
+      renderDeck() {
+        this.evidenceDeck.innerHTML = '';
+        
+        const unassignedItems = this.items.filter(item => !this.userAssignments[item.id]);
+
+        if (unassignedItems.length === 0) {
+          this.evidenceDeck.innerHTML = `
+            <div class="w-full py-4 text-center text-amber-400 font-detective text-sm flex items-center justify-center gap-2">
+              <i class="fa-solid fa-circle-check text-emerald-500 text-lg"></i>
+              Усі 17 доказів розподілені по камерах! Натисніть «Винести остаточний вердикт».
+            </div>
+          `;
+          return;
+        }
+
+        unassignedItems.forEach(item => {
+          const card = document.createElement('div');
+          const isSelected = this.selectedCardID === item.id;
+          
+          card.className = `draggable-card px-3 py-2 rounded-lg border text-xs font-medium flex items-center gap-2 transition-all shadow-md ${
+            isSelected 
+              ? 'bg-amber-600 border-amber-300 text-black font-bold ring-2 ring-amber-400 scale-105' 
+              : 'bg-stone-800 hover:bg-stone-750 border-stone-700 text-amber-100 hover:border-amber-700'
+          }`;
+          
+          card.draggable = true;
+          card.setAttribute('title', item.hint);
+
+          card.innerHTML = `
+            <i class="fa-solid ${item.icon} ${isSelected ? 'text-black' : 'text-amber-500'}"></i>
+            <div>
+              <div class="leading-tight">${item.name}</div>
+              <div class="text-[10px] opacity-75 font-mono">${item.formula}</div>
+            </div>
+          `;
+
+          // Events
+          card.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', item.id);
+          });
+
+          card.addEventListener('click', () => {
+            this.selectCard(item.id);
+          });
+
+          this.evidenceDeck.appendChild(card);
+        });
+      }
+
+      renderChambers() {
+        const chamberKeys = ['acid', 'neutral', 'alkali'];
+
+        chamberKeys.forEach(key => {
+          const chamberEl = document.querySelector(`[data-chamber="${key}"]`);
+          const itemsContainer = chamberEl.querySelector('.chamber-items');
+          const countBadge = chamberEl.querySelector('.chamber-count');
+          
+          itemsContainer.innerHTML = '';
+
+          const assignedToThis = this.items.filter(item => this.userAssignments[item.id] === key);
+          countBadge.textContent = assignedToThis.length;
+
+          if (assignedToThis.length === 0) {
+            itemsContainer.innerHTML = `
+              <div class="flex-grow flex items-center justify-center text-stone-600 text-xs italic">
+                Порожньо (Перетягніть докази сюди)
+              </div>
+            `;
+            return;
+          }
+
+          assignedToThis.forEach(item => {
+            const tag = document.createElement('div');
+            tag.className = "flex items-center justify-between p-2 rounded-lg bg-stone-900/90 border border-stone-700/70 text-xs shadow-sm";
+            
+            tag.innerHTML = `
+              <div class="flex items-center gap-2 overflow-hidden">
+                <i class="fa-solid ${item.icon} text-amber-500 text-sm"></i>
+                <div class="truncate">
+                  <span class="font-medium text-stone-200">${item.name}</span>
+                  <span class="text-[10px] text-stone-400 font-mono ml-1">(${item.formula})</span>
+                </div>
+              </div>
+              <button title="Повернути до нерозподілених" class="text-stone-500 hover:text-red-400 p-1 ml-1 transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            `;
+
+            tag.querySelector('button').addEventListener('click', (e) => {
+              e.stopPropagation();
+              delete this.userAssignments[item.id];
+              this.render();
+            });
+
+            itemsContainer.appendChild(tag);
+          });
+        });
+      }
+
+      updateStats() {
+        const assignedCount = Object.keys(this.userAssignments).length;
+        this.progressText.textContent = `${assignedCount} / 17`;
+
+        if (assignedCount === 17) {
+          this.btnSubmit.disabled = false;
+          this.btnSubmit.className = "w-full sm:w-auto px-6 py-3 bg-amber-600 hover:bg-amber-500 border border-amber-400 text-black font-extrabold font-detective rounded-xl shadow-lg hover:shadow-amber-600/30 cursor-pointer transition-all flex items-center justify-center gap-2 animate-bounce";
+        } else {
+          this.btnSubmit.disabled = true;
+          this.btnSubmit.className = "w-full sm:w-auto px-6 py-3 bg-stone-800 border border-stone-700 text-stone-500 font-bold font-detective rounded-xl cursor-not-allowed transition-all flex items-center justify-center gap-2";
+        }
+      }
+
+      evaluateResults() {
+        this.isSubmitted = true;
+        clearInterval(this.timerInterval);
+
+        let correctCount = 0;
+        const detailsContainer = document.getElementById('verdict-details');
+        detailsContainer.innerHTML = '';
+
+        this.items.forEach(item => {
+          const userChoice = this.userAssignments[item.id];
+          const isCorrect = userChoice === item.target;
+
+          if (isCorrect) correctCount++;
+
+          const chamberNames = { acid: "Камера №1 (Кислотне)", neutral: "Камера №2 (Нейтральне)", alkali: "Камера №3 (Лужне)" };
+
+          const row = document.createElement('div');
+          row.className = `p-3 rounded-lg border text-xs flex flex-col md:flex-row md:items-center justify-between gap-2 ${
+            isCorrect ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-200' : 'bg-red-950/40 border-red-800/60 text-red-200'
+          }`;
+
+          row.innerHTML = `
+            <div class="flex items-center gap-2">
+              <i class="fa-solid ${isCorrect ? 'fa-circle-check text-emerald-400' : 'fa-circle-xmark text-red-400'} text-base"></i>
+              <div>
+                <span class="font-bold font-detective text-sm">${item.name}</span>
+                <span class="text-[10px] font-mono opacity-80 ml-1">[${item.formula}]</span>
+              </div>
+            </div>
+            <div class="text-right text-[11px]">
+              <div>Ви обрали: <span class="font-semibold">${chamberNames[userChoice]}</span></div>
+              <div class="opacity-75 italic">${item.hint}</div>
+            </div>
+          `;
+
+          detailsContainer.appendChild(row);
+        });
+
+        const accuracy = Math.round((correctCount / 17) * 100);
+
+        // Update Modal Header Stats
+        document.getElementById('final-accuracy').textContent = `${accuracy}%`;
+        document.getElementById('final-score').textContent = `${correctCount} / 17`;
+        document.getElementById('final-time').textContent = this.timerText.textContent;
+
+        const badge = document.getElementById('verdict-badge');
+        if (accuracy === 100) {
+          badge.textContent = "СПРАВУ РОЗКРИТО!";
+          badge.className = "font-stamp text-xl px-4 py-1.5 border-2 rounded tracking-wider uppercase bg-emerald-950 border-emerald-500 text-emerald-400 stamp-approved";
+        } else if (accuracy >= 70) {
+          badge.textContent = "СЛІДСТВО УСПІШНЕ";
+          badge.className = "font-stamp text-xl px-4 py-1.5 border-2 rounded tracking-wider uppercase bg-amber-950 border-amber-500 text-amber-400 stamp-approved";
+        } else {
+          badge.textContent = "ПОТРІБНЕ ДОРОЗСЛІДУВАННЯ";
+          badge.className = "font-stamp text-xl px-4 py-1.5 border-2 rounded tracking-wider uppercase bg-red-950 border-red-500 text-red-400 stamp-approved";
+        }
+
+        // Show Modal
+        this.modal.classList.remove('hidden');
+      }
+    }
+
+    // Initialize App when window loaded
+    let app;
+    window.onload = function() {
+      app = new DetectiveSortingApp();
+    };
+  </script>
+</body>
+</html>
